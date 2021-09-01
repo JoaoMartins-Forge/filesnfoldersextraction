@@ -60,7 +60,7 @@ namespace forgeSample.Controllers
         Credentials.GetAppSetting("FORGE_CLIENT_ID"),
         oAuthConstants.CODE,
         Credentials.GetAppSetting("FORGE_CALLBACK_URL"),
-        new Scope[] { Scope.DataRead });
+        new Scope[] { Scope.DataRead, Scope.DataCreate, Scope.DataWrite, Scope.ViewablesRead });
 
       return oauthUrl;
     }
