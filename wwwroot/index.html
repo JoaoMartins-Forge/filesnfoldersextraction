@@ -14,6 +14,9 @@
     <!-- Autodesk Forge Viewer files -->
     <link rel="stylesheet" href="https://developer.api.autodesk.com/modelderivative/v2/viewers/7.*/style.min.css" type="text/css">
     <script src="https://developer.api.autodesk.com/modelderivative/v2/viewers/7.*/viewer3D.min.js"></script>
+    <!-- signalR -->
+    <script src="js/signalr/dist/browser/signalr.js"></script>
+    <script src="js/ContentsHub.js"></script>
     <!-- this project files -->
     <link href="css/main.css" rel="stylesheet" />
     <script src="js/ForgeTree.js"></script>
@@ -23,7 +26,7 @@
     <script src="https://unpkg.com/bootstrap-table@1.18.3/dist/bootstrap-table.min.js"></script>
     <!--Bootstrap Table extension-->
     <!--<script src="https://cdnjs.cloudflare.com/ajax/libs/TableDnD/0.9.1/jquery.tablednd.js" integrity="sha256-d3rtug+Hg1GZPB7Y/yTcRixO/wlI78+2m08tosoRn7A=" crossorigin="anonymous"></script>-->
-
+    
 </head>
 
 <body>
@@ -106,18 +109,22 @@
                                 </table>
                             </div>
                         </div>
+                        <!-- <div class="row">
+                            <div style="padding-left: 20px; padding-right: 20px; text-align: left;" id="statusLabel">
+                            </div>
+                        </div> -->
                     </div>
                 </div>
             </div>
             <div class="col-sm-2 fill">
                 <div class="row">
                     <div style="text-align: center;">
-                        <h4>Data Setting</h4>
+                        <h4>Export Data</h4>
                     </div>
                 </div>
                 <div class="row ">
                     <div id="datasets" style="padding-top: 10px; text-align: center; margin-left: 20px;">
-                        <div class="row">
+                        <!-- <div class="row">
                             <div style="padding-top: 10px; text-align: left;">
                                 <div class="col-lg-12">
                                     <div style="text-align: left;">
@@ -137,8 +144,8 @@
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                        <div class="btn-group btn-lg">
+                        </div> -->
+                        <!-- <div class="btn-group btn-lg">
                             <div style="padding-top: 10px;">
                                 <button class="btn btn-primary" id="btnRefresh">
                                     <span class="glyphicon glyphicon-refresh"></span>Refresh
@@ -146,7 +153,7 @@
                             </div>
                         </div>
                         <br>
-                        <br>
+                        <br> -->
                         <div class="row">
                             <div style="padding-top: 10px; text-align: left;">
                                 <div class="col-lg-12">
@@ -172,6 +179,20 @@
                                 <button class="btn btn-primary" id="executeCSV">
                                     <span class="glyphicon glyphicon-play"></span>Execute
                                 </button>
+                            </div>
+                        </div>
+                        <br>
+                        <br>
+                        <div class="row">
+                            <div style="padding-top: 10px; text-align: left;">
+                                <div class="col-lg-12">
+                                    <div style="text-align: left;">
+                                        <label>Status:</label>
+                                    </div>
+                                    <div class="input-group" id="statusLabel" style="color: rgb(7, 47, 82);">
+                                        <label>waiting for input</label>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                         <br />

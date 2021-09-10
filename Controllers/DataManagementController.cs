@@ -10,17 +10,29 @@ using System.Threading;
 using System.Threading.Tasks;
 using MongoDB.Driver;
 using MongoDB.Bson.Serialization.Attributes;
+using Microsoft.AspNetCore.SignalR;
 using MongoDB.Bson.Serialization;
+using MongoDB.Bson;
 using System.Linq;
+using fileInfoExtract.Hubs;
 
 namespace forgeSample.Controllers
 {
   public class DataManagementController : ControllerBase
   {
+
+    public readonly IHubContext<ContentsHub> _contentsHub;
+
+    public DataManagementController(IHubContext<ContentsHub> contentsHub)
+    {
+      _contentsHub = contentsHub;
+      GC.KeepAlive(_contentsHub);
+    }
+
     /// <summary>
     /// Credentials on this request
     /// </summary>
-    private Credentials Credentials { get; set; }
+    public Credentials Credentials { get; set; }
 
     /// <summary>
     /// GET TreeNode passing the ID
@@ -52,21 +64,38 @@ namespace forgeSample.Controllers
 
     [HttpGet]
     [Route("api/forge/resource/info")]
-    public List<dynamic> GetResourceInfo()
+    public object GetResourceInfo()
     {
-      switch (base.Request.Query["dataType"])
+      string connectionId = base.Request.Query["connectionId"];
+      string hubId = base.Request.Query["hubId"];
+      string projectId = base.Request.Query["projectId"];
+      string currentFolderId = base.Request.Query["folderId"];
+      string dataType = base.Request.Query["dataType"];
+      string guid = base.Request.Query["guid"];
+      Credentials = Credentials.FromSessionAsync(base.Request.Cookies, Response.Cookies).GetAwaiter().GetResult();
+
+      string jobId = BackgroundJob.Enqueue(() =>
+        // the API SDK
+        GatherData(connectionId, hubId, projectId, currentFolderId, dataType, guid, Credentials.TokenInternal)
+      );
+
+      return new { Success = true };
+    }
+
+    public async Task GatherData(string connectionId, string hubId, string projectId, string currentFolderId, string dataType, string guid, string token)
+    {
+      switch (dataType)
       {
         case "topFolders":
-          return GetProjectContents(base.Request.Query["hubId"], base.Request.Query["projectId"]).GetAwaiter().GetResult();
+          await GetProjectContents(hubId, projectId, connectionId, dataType, guid, token);
+          break;
         case "folder":
-          return GetFolderContents(base.Request.Query["projectId"], base.Request.Query["folderId"]).GetAwaiter().GetResult();
+          await GetFolderContents(projectId, currentFolderId, connectionId, dataType, guid, token);
+          break;
         default:
           break;
       }
-      return new List<dynamic>();
     }
-
-
 
     private async Task<IList<jsTreeNode>> GetHubsAsync()
     {
@@ -144,14 +173,13 @@ namespace forgeSample.Controllers
       return nodes;
     }
 
-    private async Task<List<dynamic>> GetProjectContents(string hubId, string projectId)
+    public async Task GetProjectContents(string hubId, string projectId, string connectionId, string dataType, string guid, string token)
     {
       List<dynamic> topfolders = new List<dynamic>();
 
-      Credentials = await Credentials.FromSessionAsync(base.Request.Cookies, Response.Cookies);
       // the API SDK
       ProjectsApi projectApi = new ProjectsApi();
-      projectApi.Configuration.AccessToken = Credentials.TokenInternal;
+      projectApi.Configuration.AccessToken = token;
 
       var folders = await projectApi.GetProjectTopFoldersAsync(hubId, projectId);
       foreach (KeyValuePair<string, dynamic> folder in new DynamicDictionaryItems(folders.data))
@@ -160,134 +188,131 @@ namespace forgeSample.Controllers
 
         topfolders.Add(jFolder);
       }
-      return topfolders;
-    }
 
-    private async Task<List<dynamic>> GetFolderContents(string projectId, string folderId)
-    {
-
-      Credentials = await Credentials.FromSessionAsync(base.Request.Cookies, Response.Cookies);
       string jobGuid = Guid.NewGuid().ToString();
 
-      string jobId = BackgroundJob.Enqueue(() =>
-        // the API SDK
-        GetAllFolderContents(projectId, folderId, jobGuid, Credentials.TokenInternal)
-      );
+      await AddItemsToDb(jobGuid, topfolders);
 
-      while (JobStorage.Current.GetConnection().GetJobData(jobId).State != "Deleted" && JobStorage.Current.GetConnection().GetJobData(jobId).State != "Succeeded")
-      {
-        Thread.Sleep(200);
-			}
-
-      return GetItemsFromDb(jobGuid);
-		}
-
-		private List<dynamic> GetItemsFromDb(string jobGuid)
-		{
-			try
-			{
-        BsonClassMap.RegisterClassMap<ItemsCollection>();
-      }
-			catch (Exception)
-			{
-
-			}
-      
-      MongoClient client = new MongoClient(Environment.GetEnvironmentVariable("MONGO_CONNECTOR"));
-
-			IMongoDatabase database = client.GetDatabase(Environment.GetEnvironmentVariable("ITEMS_DB"));
-
-			var items_collection = database.GetCollection<ItemsCollection>(Environment.GetEnvironmentVariable("ITEMS_COLLECTION"));
-
-      List<ItemsCollection> retornados = items_collection.Find(colitem => colitem.jobGuid == jobGuid).ToList();
-
-      List<dynamic> items = retornados.Select(o => o.item).ToList();
-
-      return items;
+      await ContentsHub.SendContents(_contentsHub, connectionId, jobGuid, dataType, guid, null);
     }
 
-		public async Task GetAllFolderContents(string projectId, string folderId, string jobGuid, string token)
-		{
-			FoldersApi folderApi = new FoldersApi();
-			folderApi.Configuration.AccessToken = token;
-
-			dynamic folderContents = await folderApi.GetFolderContentsAsync(projectId, folderId);
-			// the GET Folder Contents has 2 main properties: data & included (not always available)
-			DynamicDictionaryItems folderData = new DynamicDictionaryItems(folderContents.data);
-
-      List<dynamic> items = AddItems(folderContents);
-      //items.AddRange(AddItems(folderContents));
-
-      int pageNumber = 0;
-			try
-			{
-				while (folderContents.links.next != null)
-				{
-					pageNumber++;
-					folderContents = await folderApi.GetFolderContentsAsync(projectId, folderId, null, null, null, pageNumber);
-
-					folderData = new DynamicDictionaryItems(folderContents.data);
-
-          List<dynamic> newItems = AddItems(folderContents);
-          items.AddRange(newItems);
-          //items.AddRange(AddItems(folderContents));
-				}
-			}
-			catch (Exception)
-			{ }
-
-      AddItemsToDb(jobGuid, items);
-		}
-
-		private void AddItemsToDb(string jobGuid, List<dynamic> items)
-		{
+    public async Task AddItemsToDb(string jobGuid, List<dynamic> items)
+    {
       MongoClient client = new MongoClient(Environment.GetEnvironmentVariable("MONGO_CONNECTOR"));
 
       IMongoDatabase database = client.GetDatabase(Environment.GetEnvironmentVariable("ITEMS_DB"));
       var itemsCollection = database.GetCollection<ItemsCollection>(Environment.GetEnvironmentVariable("ITEMS_COLLECTION"));
-			foreach (var item in items)
-			{
+      foreach (var item in items)
+      {
         ItemsCollection newItem = new ItemsCollection()
         {
           jobGuid = jobGuid,
           item = item
         };
-
         itemsCollection.InsertOne(newItem);
       }
+    }
 
-		}
+    [HttpGet]
+    [Route("api/forge/resource/items")]
+    public List<dynamic> GetItemsFromDb()
+    {
+      string jobGuid = base.Request.Query["jobGuid"];
 
-		public static List<dynamic> AddItems(dynamic folderContents)
-		{
+      try
+      {
+        BsonClassMap.RegisterClassMap<ItemsCollection>();
+      }
+      catch (Exception)
+      {
+
+      }
+
+      MongoClient client = new MongoClient(Environment.GetEnvironmentVariable("MONGO_CONNECTOR"));
+
+      IMongoDatabase database = client.GetDatabase(Environment.GetEnvironmentVariable("ITEMS_DB"));
+
+      var items_collection = database.GetCollection<ItemsCollection>(Environment.GetEnvironmentVariable("ITEMS_COLLECTION"));
+
+      List<ItemsCollection> retornados = items_collection.Find(colitem => colitem.jobGuid == jobGuid).ToList();
+
+      List<dynamic> items = retornados.Select(o => o.item).ToList();
+
+      var bson_collection = database.GetCollection<BsonDocument>(Environment.GetEnvironmentVariable("ITEMS_COLLECTION"));
+      var filter = Builders<BsonDocument>.Filter.Eq("jobGuid", jobGuid);
+      bson_collection.DeleteManyAsync(filter);
+
+      return items;
+    }
+
+    public async Task GetFolderContents(string projectId, string folderId, string connectionId, string dataType, string guid, string token)
+    {
+      await GetAllFolderContents(projectId, folderId, token, connectionId, dataType, guid);
+    }
+
+    public async Task GetAllFolderContents(string projectId, string folderId, string token, string connectionId, string dataType, string guid)
+    {
+      FoldersApi folderApi = new FoldersApi();
+      folderApi.Configuration.AccessToken = token;
+
+      dynamic folderContents = await folderApi.GetFolderContentsAsync(projectId, folderId);
+      DynamicDictionaryItems folderData = new DynamicDictionaryItems(folderContents.data);
+
+      List<dynamic> items = AddItems(folderContents);
+
+      int pageNumber = 0;
+      try
+      {
+        while (folderContents.links.next != null)
+        {
+          pageNumber++;
+          folderContents = await folderApi.GetFolderContentsAsync(projectId, folderId, null, null, null, pageNumber);
+
+          folderData = new DynamicDictionaryItems(folderContents.data);
+
+          List<dynamic> newItems = AddItems(folderContents);
+          items.AddRange(newItems);
+        }
+      }
+      catch (Exception)
+      { }
+
+      string jobGuid = Guid.NewGuid().ToString();
+
+      await AddItemsToDb(jobGuid, items);
+
+      await ContentsHub.SendContents(_contentsHub, connectionId, jobGuid, dataType, guid, folderId);
+    }
+
+    public static List<dynamic> AddItems(dynamic folderContents)
+    {
       List<dynamic> items = new List<dynamic>();
 
       DynamicDictionaryItems folderData = new DynamicDictionaryItems(folderContents.data);
       // let's start iterating the FOLDER DATA
       foreach (KeyValuePair<string, dynamic> folderContentItem in folderData)
-			{
-				dynamic newItem = getNewObject(folderContentItem);
-				if (newItem.type == "file")
-				{
-					try
-					{
+      {
+        dynamic newItem = getNewObject(folderContentItem);
+        if (newItem.type == "file")
+        {
+          try
+          {
             dynamic itemLastVersion = getFileVersion(folderContents.included, folderContentItem.Value.relationships.tip.data.id);
             newItem.version = itemLastVersion.version;
             newItem.size = itemLastVersion.size;
           }
-					catch (Exception)
-					{
+          catch (Exception)
+          {
 
-					}
+          }
         }
-				items.Add(newItem);
-			}
-			return items;
-		}
+        items.Add(newItem);
+      }
+      return items;
+    }
 
-		private static dynamic getNewObject(KeyValuePair<string, dynamic> folderContentItem)
-		{
-			//dynamic newItem = new JObject();
+    public static dynamic getNewObject(KeyValuePair<string, dynamic> folderContentItem)
+    {
       dynamic newItem = new System.Dynamic.ExpandoObject();
       newItem.createTime = folderContentItem.Value.attributes.createTime;
       newItem.createUserId = folderContentItem.Value.attributes.createUserId;
@@ -300,61 +325,56 @@ namespace forgeSample.Controllers
       newItem.timestamp = DateTime.UtcNow.ToLongDateString();
 
       string extension = folderContentItem.Value.attributes.extension.type;
-			switch (extension)
-			{
-				case "folders:autodesk.bim360:Folder":
-					newItem.name = folderContentItem.Value.attributes.name;
+      switch (extension)
+      {
+        case "folders:autodesk.bim360:Folder":
+          newItem.name = folderContentItem.Value.attributes.name;
           newItem.filesInside = 0;
           newItem.foldersInside = 0;
-					newItem.type = "folder";
-					break;
-				case "items:autodesk.bim360:File":
-					newItem.name = folderContentItem.Value.attributes.displayName;
-					newItem.type = "file";
-					break;
-				case "items:autodesk.bim360:Document":
-					newItem.name = folderContentItem.Value.attributes.displayName;
-					newItem.type = "file";
-					break;
-				default:
+          newItem.type = "folder";
+          break;
+        case "items:autodesk.bim360:File":
           newItem.name = folderContentItem.Value.attributes.displayName;
           newItem.type = "file";
           break;
-			}
+        case "items:autodesk.bim360:Document":
+          newItem.name = folderContentItem.Value.attributes.displayName;
+          newItem.type = "file";
+          break;
+        default:
+          newItem.name = folderContentItem.Value.attributes.displayName;
+          newItem.type = "file";
+          break;
+      }
 
-			return newItem;
-		}
+      return newItem;
+    }
 
-		private static dynamic getFileVersion(dynamic included, string versionId)
-		{
+    public static dynamic getFileVersion(dynamic included, string versionId)
+    {
       DynamicDictionaryItems folderIncluded = new DynamicDictionaryItems(included);
 
       foreach (KeyValuePair<string, dynamic> ItemVersion in folderIncluded)
-			{
-				if (ItemVersion.Value.id == versionId)
-				{
-					try
-					{
+      {
+        if (ItemVersion.Value.id == versionId)
+        {
+          try
+          {
             dynamic dynamicAux = new System.Dynamic.ExpandoObject();
             dynamicAux.version = ItemVersion.Value.attributes.versionNumber;
             dynamicAux.size = ItemVersion.Value.attributes.storageSize;
             return dynamicAux;
           }
-					catch (Exception ex)
-					{
+          catch (Exception ex)
+          {
             return new System.Dynamic.ExpandoObject();
           }
-          
-				}
-			}
+
+        }
+      }
       return new System.Dynamic.ExpandoObject();
     }
 
-		public static string Base64Encode(string plainText)
-    {
-      var plainTextBytes = System.Text.Encoding.UTF8.GetBytes(plainText);
-      return System.Convert.ToBase64String(plainTextBytes).Replace("/", "_");
-    }
 
     [BsonIgnoreExtraElements]
     public class ItemsCollection

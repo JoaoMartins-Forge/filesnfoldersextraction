@@ -135,7 +135,7 @@ namespace forgeSample.Controllers
       if (requestCookie == null || !requestCookie.ContainsKey(FORGE_COOKIE)) return null;
 
       Credentials credentials = JsonConvert.DeserializeObject<Credentials>(requestCookie[FORGE_COOKIE]);
-      if (credentials.ExpiresAt < DateTime.Now)
+      if (credentials.ExpiresAt < DateTime.Now.Add(new TimeSpan(0, 10, 0)))
       {
         await credentials.RefreshAsync();
         responseCookie.Delete(FORGE_COOKIE);

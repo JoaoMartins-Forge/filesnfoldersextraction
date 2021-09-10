@@ -50,6 +50,9 @@ class ItemsTable {
         this.items = [];
         this.dataSet = [];
         this.fullPaths = {};
+        this.guid = createUUID();
+        this.requests = 0;
+        this.responses = 0;
     }
 
     getTableData() {
@@ -226,40 +229,20 @@ class ItemsTable {
         
     }
 
-    async fetchDataAsync( currentFolderId = null, currentFileId = null, dataType ) {
+    async fetchDataAsync( currentFolderId = null, dataType ) {
+        this.requests ++;
+        this.updateStatus();
         try {
             const requestUrl = '/api/forge/resource/info';
             const requestData = {
                 'hubId': this.hubId,
                 'projectId': this.projectId,
                 'folderId': currentFolderId,
-                'fileId': currentFileId,
-                'dataType': dataType
+                'dataType': dataType,
+                'connectionId': connection.connection.connectionId,
+                'guid': this.guid
             };
-            let rawItems = await apiClientAsync(requestUrl, requestData);
-
-            this.items.push(...rawItems);
-
-            switch (dataType) {
-                case 'topFolders': {
-                    for (const rawItem of rawItems) {
-                        this.fullPaths[rawItem.id] = rawItem.name;
-                    }
-                    this.drawTable();
-                    break;
-                }
-                case 'folder': {
-                    let parentFullPath = this.fullPaths[currentFolderId];
-                    for (const rawItem of rawItems) {
-                        this.fullPaths[rawItem.id] = `${parentFullPath}/${rawItem.name}`;
-                    }
-                    let totalFiles = rawItems.filter(i => i.type === 'file').length;
-                    let totalFolders = rawItems.filter(i => i.type === 'folder').length;
-                    this.updateItemsInside(currentFolderId, totalFiles, totalFolders);
-                    this.refreshTable();
-                    return rawItems;
-                };
-            };
+            apiClientAsync(requestUrl, requestData);
 
         }
         catch (err) {
@@ -267,20 +250,63 @@ class ItemsTable {
         }
     }
 
-    async getReport() {
-        await this.fetchDataAsync(null, null, 'topFolders');
+    async getReadyItems(dataType, contentsGuid, parentFolderId){
 
-        for (const topFolder of this.items) {
-            this.getFolderContents(topFolder);
-        }
-    }
+        const requestUrl = 'api/forge/resource/items';
+        const requestData = {
+            'jobGuid': contentsGuid
+        };
+        let contents = await apiClientAsync(requestUrl, requestData);
 
-    async getFolderContents(folder) {
-        let folderContents = await this.fetchDataAsync(folder.id, null, 'folder');
-        for (const folderContent of folderContents) {
+        this.responses ++;
+        this.updateStatus();
+
+        this.items.push(...contents);
+
+        switch (dataType) {
+            case 'topFolders': {
+                for (const rawItem of contents) {
+                    this.fullPaths[rawItem.id] = rawItem.name;
+                }
+                this.drawTable();
+                break;
+            }
+            case 'folder': {
+                let parentFullPath = this.fullPaths[parentFolderId];
+                for (const rawItem of contents) {
+                    this.fullPaths[rawItem.id] = `${parentFullPath}/${rawItem.name}`;
+                }
+                let totalFiles = contents.filter(i => i.type === 'file').length;
+                let totalFolders = contents.filter(i => i.type === 'folder').length;
+                this.updateItemsInside(parentFolderId, totalFiles, totalFolders);
+                this.refreshTable();
+            };
+        };
+    
+        for (const folderContent of contents) {
             (folderContent.type == "folder" ? this.getFolderContents(folderContent) : null);
         }
     }
+
+    async updateStatus(){
+        $('#statusLabel').empty();
+        $('#statusLabel').append('<label>'+this.responses+' out of '+this.requests+' steps done!</label>');
+    }
+
+    async getReport() {
+        this.fetchDataAsync(null, 'topFolders');
+    }
+
+    async getFolderContents(folder) {
+        this.fetchDataAsync(folder.id, 'folder');
+    }
+}
+
+function createUUID() {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+       var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+       return v.toString(16);
+    });
 }
 
 // helper function for Request

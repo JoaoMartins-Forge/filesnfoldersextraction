@@ -37,6 +37,9 @@
         });
     });
 
+    $('input[type=radio][name=filter_by]').change(function() {
+        itemsTable.refreshTable();
+    });
 
     $('#btnRefresh').click(function () {
         itemsTable.reset();
@@ -91,16 +94,15 @@ function prepareUserHubsTree() {
         "state": { "key": "autodeskHubs" }// key restore tree state
     }).bind("activate_node.jstree", function (evt, data) {
         if (data != null && data.node != null && (data.node.type == 'accprojects' || data.node.type == 'bim360projects')) {
+            $('#statusLabel').empty();
+            $('#statusLabel').append('<label>reading project '+data.node.text+'...</label>');
             itemsTable = new ItemsTable("itemsTable", data.node.id.split('/')[6], data.node.id.split('/')[8]);
             itemsTable.getReport();
         }
     });
 }
 
-function onGenReportSuccess() {
-    console.log("TABLE GENERATED!");
-    itemsTable.drawTable();
-}
+
 
 
 function showUser() {

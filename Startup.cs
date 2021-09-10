@@ -1,22 +1,19 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Hangfire.Mongo;
 using Hangfire.Mongo.Migration.Strategies;
 using Hangfire.Mongo.Migration.Strategies.Backup;
 using Hangfire;
+using fileInfoExtract.Hubs;
 
 namespace fileInfoExtract
 {
-	public class Startup
-	{
+  public class Startup
+  {
     //https://stackoverflow.com/questions/58340247/how-to-use-hangfire-in-net-core-with-mongodb
 
     // This method gets called by the runtime. Use this method to add services to the container.
@@ -42,6 +39,12 @@ namespace fileInfoExtract
 
       });
       services.AddHangfireServer();
+
+      services.AddSignalR(o =>
+      {
+        o.EnableDetailedErrors = true;
+        o.MaximumReceiveMessageSize = 10240; // bytes
+      });
     }
 
     // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -54,10 +57,18 @@ namespace fileInfoExtract
 
       app.UseDefaultFiles();
       app.UseStaticFiles();
-      app.UseMvc();
 
       app.UseHangfireDashboard();
       backgroundJobs.Enqueue(() => Console.WriteLine("Hello world from Hangfire!"));
+
+
+      app.UseRouting();
+      app.UseEndpoints(endpoints =>
+      {
+        endpoints.MapHub<ContentsHub>("/contentshub");
+      });
+
+      app.UseMvc();
     }
 
   }
