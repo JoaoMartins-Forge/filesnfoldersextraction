@@ -2,11 +2,8 @@
 using Autodesk.Forge.Model;
 using Hangfire;
 using Microsoft.AspNetCore.Mvc;
-using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
-using System.Net;
-using System.Threading;
 using System.Threading.Tasks;
 using MongoDB.Driver;
 using MongoDB.Bson.Serialization.Attributes;
@@ -71,26 +68,26 @@ namespace forgeSample.Controllers
       string projectId = base.Request.Query["projectId"];
       string currentFolderId = base.Request.Query["folderId"];
       string dataType = base.Request.Query["dataType"];
-      string guid = base.Request.Query["guid"];
+      string projectGuid = base.Request.Query["guid"];
       Credentials = Credentials.FromSessionAsync(base.Request.Cookies, Response.Cookies).GetAwaiter().GetResult();
 
       string jobId = BackgroundJob.Enqueue(() =>
         // the API SDK
-        GatherData(connectionId, hubId, projectId, currentFolderId, dataType, guid, Credentials.TokenInternal)
+        GatherData(connectionId, hubId, projectId, currentFolderId, dataType, projectGuid, Credentials.TokenInternal)
       );
 
       return new { Success = true };
     }
 
-    public async Task GatherData(string connectionId, string hubId, string projectId, string currentFolderId, string dataType, string guid, string token)
+    public async Task GatherData(string connectionId, string hubId, string projectId, string currentFolderId, string dataType, string projectGuid, string token)
     {
       switch (dataType)
       {
         case "topFolders":
-          await GetProjectContents(hubId, projectId, connectionId, dataType, guid, token);
+          await GetProjectContents(hubId, projectId, connectionId, dataType, projectGuid, token);
           break;
         case "folder":
-          await GetFolderContents(projectId, currentFolderId, connectionId, dataType, guid, token);
+          await GetFolderContents(projectId, currentFolderId, connectionId, dataType, projectGuid, token);
           break;
         default:
           break;
@@ -173,7 +170,7 @@ namespace forgeSample.Controllers
       return nodes;
     }
 
-    public async Task GetProjectContents(string hubId, string projectId, string connectionId, string dataType, string guid, string token)
+    public async Task GetProjectContents(string hubId, string projectId, string connectionId, string dataType, string projectGuid, string token)
     {
       List<dynamic> topfolders = new List<dynamic>();
 
@@ -184,16 +181,13 @@ namespace forgeSample.Controllers
       var folders = await projectApi.GetProjectTopFoldersAsync(hubId, projectId);
       foreach (KeyValuePair<string, dynamic> folder in new DynamicDictionaryItems(folders.data))
       {
-        dynamic jFolder = getNewObject(folder);
-
-        topfolders.Add(jFolder);
+        dynamic dynamicFolder = getNewObject(folder);
+        topfolders.Add(dynamicFolder);
       }
 
       string jobGuid = Guid.NewGuid().ToString();
-
       await AddItemsToDb(jobGuid, topfolders);
-
-      await ContentsHub.SendContents(_contentsHub, connectionId, jobGuid, dataType, guid, null);
+      await ContentsHub.SendContents(_contentsHub, connectionId, jobGuid, dataType, projectGuid, null);
     }
 
     public async Task AddItemsToDb(string jobGuid, List<dynamic> items)
@@ -245,12 +239,12 @@ namespace forgeSample.Controllers
       return items;
     }
 
-    public async Task GetFolderContents(string projectId, string folderId, string connectionId, string dataType, string guid, string token)
+    public async Task GetFolderContents(string projectId, string folderId, string connectionId, string dataType, string projectGuid, string token)
     {
-      await GetAllFolderContents(projectId, folderId, token, connectionId, dataType, guid);
+      await GetAllFolderContents(projectId, folderId, token, connectionId, dataType, projectGuid);
     }
 
-    public async Task GetAllFolderContents(string projectId, string folderId, string token, string connectionId, string dataType, string guid)
+    public async Task GetAllFolderContents(string projectId, string folderId, string token, string connectionId, string dataType, string projectGuid)
     {
       FoldersApi folderApi = new FoldersApi();
       folderApi.Configuration.AccessToken = token;
@@ -281,7 +275,7 @@ namespace forgeSample.Controllers
 
       await AddItemsToDb(jobGuid, items);
 
-      await ContentsHub.SendContents(_contentsHub, connectionId, jobGuid, dataType, guid, folderId);
+      await ContentsHub.SendContents(_contentsHub, connectionId, jobGuid, dataType, projectGuid, folderId);
     }
 
     public static List<dynamic> AddItems(dynamic folderContents)
@@ -367,12 +361,18 @@ namespace forgeSample.Controllers
           }
           catch (Exception ex)
           {
-            return new System.Dynamic.ExpandoObject();
+            dynamic dynamicAuxMissing = new System.Dynamic.ExpandoObject();
+            dynamicAuxMissing.version = "";
+            dynamicAuxMissing.size = "";
+            return dynamicAuxMissing;
           }
 
         }
       }
-      return new System.Dynamic.ExpandoObject();
+      dynamic dynamicAuxNoIncluded = new System.Dynamic.ExpandoObject();
+      dynamicAuxNoIncluded.version = "";
+      dynamicAuxNoIncluded.size = "";
+      return dynamicAuxNoIncluded;
     }
 
 

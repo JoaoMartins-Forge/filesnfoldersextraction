@@ -103,8 +103,6 @@ function prepareUserHubsTree() {
 }
 
 
-
-
 function showUser() {
     jQuery.ajax({
         url: '/api/forge/user/profile',

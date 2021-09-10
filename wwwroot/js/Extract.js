@@ -1,11 +1,4 @@
-﻿
-var itemsTable = null;
-
-// Data type
-const DataType = {
-    FILES: 'files',
-    FOLDERS: 'folders'
-}
+﻿var itemsTable = null;
 
 const humanReadableTitles = {
     name: 'ITEM NAME',
@@ -25,11 +18,11 @@ const excludedFromTable = [
     'hidden'
 ]
 
-const notHumanReadableFields = [
-    'createUserId',
-    'lastModifiedUserId',
-    'lastModifiedUserId'
-]
+// const notHumanReadableFields = [
+//     'createUserId',
+//     'lastModifiedUserId',
+//     'lastModifiedUserId'
+// ]
 
 const folderSpecificFields = {
     filesInside: 'FILES INSIDE',
@@ -42,11 +35,11 @@ const fileSpecificFields = {
 }
 
 class ItemsTable {
-    constructor(tableId, hubId, projectId, currentDataType = DataType.FOLDERS) {
+    constructor(tableId, hubId, projectId) {
         this.tableId = tableId;
         this.hubId = hubId;
         this.projectId = projectId;
-        this.currentDataType = currentDataType;
+        // this.currentDataType = currentDataType;
         this.items = [];
         this.dataSet = [];
         this.fullPaths = {};
@@ -68,6 +61,7 @@ class ItemsTable {
     }
 
     exportTableAsCSV() {
+        let visibleColumns = this.getVisibleColumns()
         let csvData = this.getTableData();
         let csvDataCleared = this.cleanForCommas(csvData);
         let csvString = csvDataCleared.join("%0A");
@@ -89,9 +83,10 @@ class ItemsTable {
 
     cleanForCommas(csvData) {
         let clearedCsvData = [];
+        let visibleColumns = this.getVisibleColumns();
+        clearedCsvData.push(visibleColumns);
         for (const rowObject of csvData) {
             let auxRow = [];
-            let visibleColumns = this.getVisibleColumns();
             for (const rowKey in rowObject) {
                 if (visibleColumns.includes(rowKey))
                     auxRow.push(typeof rowObject[rowKey] === "string" ? rowObject[rowKey].replaceAll(',', ' ') : rowObject[rowKey]);
@@ -120,7 +115,6 @@ class ItemsTable {
     }
 
     prepareDataset() {
-        
         let filteredObjects;
         switch (this.getTableLevel()) {
             case "folderlevel":
@@ -142,7 +136,6 @@ class ItemsTable {
 
     getHumanReadableColumns() {
         let excludedColumns = excludedFromTable;
-        (this.checkHumanReadable() ? excludedColumns.push(...notHumanReadableFields) : null);
 
         this.prepareDataset();
         let tableColumns = [];

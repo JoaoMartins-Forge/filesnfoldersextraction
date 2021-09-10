@@ -6,11 +6,9 @@ namespace fileInfoExtract.Hubs
 {
   public class ContentsHub : Microsoft.AspNetCore.SignalR.Hub
   {
-
-    public async static Task SendContents(IHubContext<ContentsHub> hub, string connectionId, string contentsGuid, string dataType, string extractionGuid, string parentFolderId)
+    public async static Task SendContents(IHubContext<ContentsHub> hub, string connectionId, string jobGuid, string dataType, string projectGuid, string parentFolderId)
     {
-      await hub.Clients.Client(connectionId).SendAsync("ReceiveContents", contentsGuid, dataType, extractionGuid, parentFolderId);
+      await hub.Clients.Client(connectionId).SendAsync("ReceiveContents", jobGuid, dataType, projectGuid, parentFolderId);
     }
-
   }
 }

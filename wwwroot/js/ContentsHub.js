@@ -6,7 +6,6 @@ connection.on("ReceiveContents", function (contentsGuid, dataType, guid, parentF
     itemsTable.getReadyItems(dataType, contentsGuid, parentFolderId)
 
   }
-    
 });
 
 async function hubClientAsync(hubId, projectId, currentFolderId, currentFileId, dataType){

@@ -59,8 +59,6 @@ namespace fileInfoExtract
       app.UseStaticFiles();
 
       app.UseHangfireDashboard();
-      backgroundJobs.Enqueue(() => Console.WriteLine("Hello world from Hangfire!"));
-
 
       app.UseRouting();
       app.UseEndpoints(endpoints =>
