@@ -15,7 +15,7 @@
 
 # Description
 
-Demonstrate how to retrieve data of all the folders and files on a specific project to render on a table and export it as csv. This sample recursively iterate through all folders of the selected project. It then, stores the data on a MongoDB collection temporarily, until the client retrieves that to render on its page. By the end of the extraction, every file and folder under the selected project are rendered on the user table and can be exported as csv.
+This sample demonstrate how to retrieve data of all the folders and files on a specific project to render on a table and export it as csv. This sample recursively iterate through all folders of the selected project. It then, stores the data on a MongoDB collection temporarily, until the client retrieves that to render on its page. By the end of the extraction, every file and folder under the selected project are rendered on the user table and can be exported as csv.
 
 ## Thumbnail
 
