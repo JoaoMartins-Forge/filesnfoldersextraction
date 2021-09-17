@@ -22,10 +22,10 @@
         "ASPNETCORE_URLS" : "http://localhost:3000",
         "ITEMS_COLLECTION": "items",
         "FORGE_CALLBACK_URL": "http://localhost:3000/api/forge/callback/oauth",
-        "FORGE_CLIENT_SECRET": "U5AjtGNZ7KpfYEyh",
+        "FORGE_CLIENT_SECRET": "eS2vKuGvi9fcQwRc",
         "HANGFIREDATABASE": "filesextraction",
         "MONGO_CONNECTOR": "mongodb+srv://forge_user:gQgAbqOnIoumdWUp@cluster0.bjupz.mongodb.net/hangfire?retryWrites=true&w=majority",
-        "FORGE_CLIENT_ID": "3DdLZWYSnApSxSfwEfds0OG4IDYhvM9T",
+        "FORGE_CLIENT_ID": "YwbADcV8nGDprNDtxdg0oUBSUHUuRtKr",
         "ITEMS_DB": "hangfire"
       },
       "sourceFileMap": {

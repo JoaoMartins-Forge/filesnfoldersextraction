@@ -2,7 +2,7 @@
 <html>
 
 <head>
-    <title>View Hub Models - Autodesk Forge</title>
+    <title>Files and Folders Extraction - Autodesk Forge</title>
     <meta charset="utf-8" />
     <link rel="shortcut icon" href="https://github.com/Autodesk-Forge/learn.forge.viewhubmodels/raw/master/img/favicon.ico">
     <!-- Common packages: jQuery, Bootstrap, jsTree -->
@@ -24,8 +24,6 @@
     <!-- Bootstrap Table-->
     <link rel="stylesheet" href="https://unpkg.com/bootstrap-table@1.18.3/dist/bootstrap-table.min.css">
     <script src="https://unpkg.com/bootstrap-table@1.18.3/dist/bootstrap-table.min.js"></script>
-    <!--Bootstrap Table extension-->
-    <!--<script src="https://cdnjs.cloudflare.com/ajax/libs/TableDnD/0.9.1/jquery.tablednd.js" integrity="sha256-d3rtug+Hg1GZPB7Y/yTcRixO/wlI78+2m08tosoRn7A=" crossorigin="anonymous"></script>-->
     
 </head>
 
@@ -40,6 +38,10 @@
                     </a>
                 </li>
             </ul>
+            <div style="float: right; margin-top: 15px;">
+                <span style="padding-right: 5px;" data-toggle="modal" data-target="#provisionAccountModal" title="Enable my BIM 360 Account"><span
+                class="glyphicon glyphicon-cog glyphiconTop mlink"> </span> Enable my BIM 360/ACC Account</span>
+            </div>
         </div>
     </nav>
     <!-- End of navbar -->
@@ -109,10 +111,6 @@
                                 </table>
                             </div>
                         </div>
-                        <!-- <div class="row">
-                            <div style="padding-left: 20px; padding-right: 20px; text-align: left;" id="statusLabel">
-                            </div>
-                        </div> -->
                     </div>
                 </div>
             </div>
@@ -171,6 +169,49 @@
             </div>
         </div>
     </div>
+    <!-- Modal Provision BIM360  -->
+  <div class="modal fade" id="provisionAccountModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+    <div class="modal-dialog" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <button type="button" class="close" data-dismiss="modal" aria-label="Cancel">
+            <span aria-hidden="true">&times;</span>
+          </button>
+          <h4 class="modal-title">Thanks for using this sample!</h4>
+        </div>
+        <div class="modal-body">
+          <p>To view your BIM 360/ACC files on this app please authorize my Forge Client ID with your BIM 360/ACC
+            Account.
+          </p>
+          <p>
+            <button type="button" class="btn btn-info" data-toggle="modal" data-target="#provisionAccountStepsModal">
+              Show me the steps
+              <span class="glyphicon glyphicon-new-window"></span>
+            </button>
+          </p>
+          Use this as Forge Client ID:
+          <div class="input-group">
+            <input type="text" readonly="true" aria-describedby="CopyClientID" id="ClientID" class="form-control" value="" />
+            <span class="input-group-addon" style="cursor: pointer" data-clipboard-target="#ClientID" id="CopyClientID">Copy
+              to clipboard</span>
+          </div>
+          And this App Name:
+          <div class="input-group">
+            <input type="text" readonly="true" aria-describedby="CopyAppName" id="AppName" class="form-control" value="BIM 360 Sample" />
+            <span class="input-group-addon" style="cursor: pointer" data-clipboard-target="#AppName" id="CopyAppName">Copy
+              to clipboard</span>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-primary" id="provisionAccountSave">Done</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+    new Clipboard('.input-group-addon');
+  </script>
 </body>
 <iframe id="hiddenFrame" style="visibility: hidden; display: none" />
 </html>

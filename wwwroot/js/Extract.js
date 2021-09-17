@@ -1,4 +1,22 @@
-﻿var itemsTable = null;
+﻿/////////////////////////////////////////////////////////////////////
+// Copyright (c) Autodesk, Inc. All rights reserved
+// Written by Forge Partner Development
+//
+// Permission to use, copy, modify, and distribute this software in
+// object code form for any purpose and without fee is hereby granted,
+// provided that the above copyright notice appears in all copies and
+// that both that copyright notice and the limited warranty and
+// restricted rights notice below appear in all supporting
+// documentation.
+//
+// AUTODESK PROVIDES THIS PROGRAM "AS IS" AND WITH ALL FAULTS.
+// AUTODESK SPECIFICALLY DISCLAIMS ANY IMPLIED WARRANTY OF
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR USE.  AUTODESK, INC.
+// DOES NOT WARRANT THAT THE OPERATION OF THE PROGRAM WILL BE
+// UNINTERRUPTED OR ERROR FREE.
+/////////////////////////////////////////////////////////////////////
+
+var itemsTable = null;
 
 const humanReadableTitles = {
     name: 'ITEM NAME',
@@ -18,12 +36,6 @@ const excludedFromTable = [
     'hidden'
 ]
 
-// const notHumanReadableFields = [
-//     'createUserId',
-//     'lastModifiedUserId',
-//     'lastModifiedUserId'
-// ]
-
 const folderSpecificFields = {
     filesInside: 'FILES INSIDE',
     foldersInside: 'FOLDERS INSIDE'
@@ -39,7 +51,6 @@ class ItemsTable {
         this.tableId = tableId;
         this.hubId = hubId;
         this.projectId = projectId;
-        // this.currentDataType = currentDataType;
         this.items = [];
         this.dataSet = [];
         this.fullPaths = {};
@@ -61,7 +72,6 @@ class ItemsTable {
     }
 
     exportTableAsCSV() {
-        let visibleColumns = this.getVisibleColumns()
         let csvData = this.getTableData();
         let csvDataCleared = this.cleanForCommas(csvData);
         let csvString = csvDataCleared.join("%0A");
@@ -84,13 +94,17 @@ class ItemsTable {
     cleanForCommas(csvData) {
         let clearedCsvData = [];
         let visibleColumns = this.getVisibleColumns();
-        clearedCsvData.push(visibleColumns);
+        let mergedTitles = {...humanReadableTitles, ...folderSpecificFields, ...fileSpecificFields};
+        clearedCsvData.push(visibleColumns.map((columnName) => mergedTitles[columnName]));
         for (const rowObject of csvData) {
             let auxRow = [];
-            for (const rowKey in rowObject) {
-                if (visibleColumns.includes(rowKey))
-                    auxRow.push(typeof rowObject[rowKey] === "string" ? rowObject[rowKey].replaceAll(',', ' ') : rowObject[rowKey]);
+            for(const columnTitle of visibleColumns){
+                auxRow.push(typeof rowObject[columnTitle] === "string" ? rowObject[columnTitle].replaceAll(',', ' ') : rowObject[columnTitle]);
             }
+            // for (const rowKey in rowObject) {
+            //     if (visibleColumns.includes(rowKey))
+            //         auxRow.push(typeof rowObject[rowKey] === "string" ? rowObject[rowKey].replaceAll(',', ' ') : rowObject[rowKey]);
+            // }
             clearedCsvData.push(auxRow);
         }
         return clearedCsvData;
@@ -186,8 +200,7 @@ class ItemsTable {
             search: true,
             sortable: true,
             columns: tableColumns
-        })
-
+        });
     }
 
     refreshTable() {
@@ -199,7 +212,6 @@ class ItemsTable {
             data: this.dataSet,
             columns: tableColumns
         });
-
     }
 
     updateItemsInside(currentFolderId, totalFiles, totalFolders) {
@@ -278,6 +290,13 @@ class ItemsTable {
     
         for (const folderContent of contents) {
             (folderContent.type == "folder" ? this.getFolderContents(folderContent) : null);
+        }
+
+        if(this.requests==this.responses && this.requests > 0){
+            $('#itemsTable').dragtable({
+                maxMovingRows:1,
+                reorderableColumns:true
+            });
         }
     }
 
